@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { apiReference } from '@scalar/nestjs-api-reference';
 import { AppModule } from './app.module';
 import { envs } from './config/configuration';
 import helmet from 'helmet';
@@ -38,7 +39,7 @@ async function bootstrap() {
   app.enableCors({
     origin: envs.cors.origins,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
@@ -88,33 +89,14 @@ API para la gestión de formularios de partes interesadas.
 
   const document = SwaggerModule.createDocument(app, config);
 
-  // En producción usar Swagger UI (compatible), en desarrollo Scalar
-  if (envs.nodeEnv === 'production') {
-    SwaggerModule.setup('api', app, document, {
-      customSiteTitle: 'Forms API - Swagger UI',
-      customCss: '.swagger-ui .topbar { display: none }',
-    });
-    logger.log('API documentation: Swagger UI', 'Bootstrap');
-  } else {
-    try {
-      // Import dinámico de Scalar solo en desarrollo
-      const { apiReference } = await import('@scalar/nestjs-api-reference');
-      app.use(
-        '/api',
-        apiReference({
-          content: document,
-        }),
-      );
-      logger.log('API documentation: Scalar', 'Bootstrap');
-    } catch (error) {
-      // Fallback a Swagger UI si Scalar no está disponible
-      SwaggerModule.setup('api', app, document, {
-        customSiteTitle: 'Forms API - Swagger UI',
-        customCss: '.swagger-ui .topbar { display: none }',
-      });
-      logger.warn('Scalar not available, using Swagger UI fallback', 'Bootstrap');
-    }
-  }
+  // Configurar Scalar API Reference
+  app.use(
+    '/api',
+    apiReference({
+      content: document,
+    }),
+  );
+  logger.log('API documentation: Scalar', 'Bootstrap');
 
   await app.listen(envs.port);
 

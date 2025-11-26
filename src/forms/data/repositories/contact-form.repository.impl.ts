@@ -6,6 +6,7 @@ import { ContactFormI } from 'src/forms/domain/entitiesI/ContactFormI';
 import { ContactFormRepository } from 'src/forms/domain/repositories/ContactFormRepository';
 import { ContactFormEntity } from '../entities/contact-form.entity';
 import { CreateFormDto } from '../dtos/create-form.dto';
+import { FilterFormsDto } from '../dtos/filter-forms.dto';
 
 @Injectable()
 export class ContactFormRepositoryImpl implements ContactFormRepository {
@@ -40,16 +41,109 @@ export class ContactFormRepositoryImpl implements ContactFormRepository {
     }
   }
 
-  async findOne(id: string): Promise<ContactFormI> {
+  async findOne(id: string): Promise<ContactFormI | null> {
     try {
       const form = await this.contactFormRepository.findOne({ where: { id } });
+      return form || null;
+    } catch (error) {
+      throw new RpcException({
+        message: error.message,
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async updateAtendido(id: string, atendido: boolean): Promise<ContactFormI> {
+    try {
+      const form = await this.contactFormRepository.findOne({ where: { id } });
+
       if (!form) {
         throw new RpcException({
-          message: 'El formulario solicitado no existe.',
+          message: 'Formulario no encontrado',
           status: HttpStatus.NOT_FOUND,
         });
       }
-      return form;
+
+      form.atendido = atendido;
+      return await this.contactFormRepository.save(form);
+    } catch (error) {
+      throw new RpcException({
+        message: error.message,
+        status: error.status || HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async filterForms(filters: FilterFormsDto): Promise<ContactFormI[]> {
+    try {
+      const queryBuilder = this.contactFormRepository.createQueryBuilder('form');
+
+      if (filters.colonia) {
+        queryBuilder.andWhere('form.colonia = :colonia', { colonia: filters.colonia });
+      }
+
+      if (filters.municipio) {
+        queryBuilder.andWhere('form.municipio = :municipio', { municipio: filters.municipio });
+      }
+
+      queryBuilder.orderBy('form.createdAt', 'DESC');
+
+      return await queryBuilder.getMany();
+    } catch (error) {
+      throw new RpcException({
+        message: error.message,
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async getStatistics(): Promise<{ totalRegistros: number; registrosAtendidos: number }> {
+    try {
+      const [totalRegistros, registrosAtendidos] = await Promise.all([
+        this.contactFormRepository.count(),
+        this.contactFormRepository.count({ where: { atendido: true } }),
+      ]);
+
+      return {
+        totalRegistros,
+        registrosAtendidos,
+      };
+    } catch (error) {
+      throw new RpcException({
+        message: error.message,
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async getTopMunicipalities(limit: number): Promise<Array<{ municipio: string; total: string }>> {
+    try {
+      return await this.contactFormRepository
+        .createQueryBuilder('form')
+        .select('form.municipio', 'municipio')
+        .addSelect('COUNT(*)', 'total')
+        .groupBy('form.municipio')
+        .orderBy('total', 'DESC')
+        .limit(limit)
+        .getRawMany();
+    } catch (error) {
+      throw new RpcException({
+        message: error.message,
+        status: HttpStatus.BAD_REQUEST,
+      });
+    }
+  }
+
+  async getTopStates(limit: number): Promise<Array<{ estado: string; total: string }>> {
+    try {
+      return await this.contactFormRepository
+        .createQueryBuilder('form')
+        .select('form.estado', 'estado')
+        .addSelect('COUNT(*)', 'total')
+        .groupBy('form.estado')
+        .orderBy('total', 'DESC')
+        .limit(limit)
+        .getRawMany();
     } catch (error) {
       throw new RpcException({
         message: error.message,

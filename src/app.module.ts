@@ -20,9 +20,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
       synchronize: true,
       logging: envs.nodeEnv === 'development',
       maxQueryExecutionTime: 5000, // 5 segundos timeout
+      ssl: false,
       extra: {
         max: 10, // connection pool limit
-        ssl: envs.nodeEnv === 'production' ? { rejectUnauthorized: false } : false,
       },
     }),
     ThrottlerModule.forRoot([

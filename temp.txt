@@ -1,8 +1,5 @@
 import { IsString, IsEmail, IsNotEmpty, MaxLength, MinLength, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { TransformEmail } from '../../../common/decorators/transform-email.decorator';
-import { TransformPhone } from '../../../common/decorators/transform-phone.decorator';
-import { TransformPostalCode } from '../../../common/decorators/transform-postal-code.decorator';
 
 export class CreateFormDto {
   @ApiProperty({
@@ -26,24 +23,22 @@ export class CreateFormDto {
   apellidos: string;
 
   @ApiProperty({
-    description: 'Número de teléfono (se normalizará automáticamente a formato +52)',
+    description: 'Número de teléfono',
     example: '9637894562',
     maxLength: 20,
   })
-  @TransformPhone()
   @IsString()
   @IsNotEmpty()
-  @Matches(/^\+?[0-9]+$/, { message: 'El número de teléfono debe contener solo dígitos' })
+  @Matches(/^[0-9]+$/, { message: 'El número de teléfono debe contener solo dígitos' })
   @MinLength(10)
   @MaxLength(20)
   numeroTelefono: string;
 
   @ApiProperty({
-    description: 'Correo electrónico (se normalizará automáticamente a minúsculas)',
+    description: 'Correo electrónico',
     example: 'villalobos@gmail.com',
     maxLength: 150,
   })
-  @TransformEmail()
   @IsEmail({}, { message: 'El email debe ser válido' })
   @IsNotEmpty()
   @MaxLength(150)
@@ -70,11 +65,10 @@ export class CreateFormDto {
   numeroExterior: string;
 
   @ApiProperty({
-    description: 'Código postal (5 dígitos para México)',
+    description: 'Código postal',
     example: '30040',
     maxLength: 10,
   })
-  @TransformPostalCode()
   @IsString()
   @IsNotEmpty()
   @Matches(/^[0-9]+$/, { message: 'El código postal debe contener solo dígitos' })
