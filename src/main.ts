@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { apiReference } from '@scalar/nestjs-api-reference';
 import { AppModule } from './app.module';
 import { envs } from './config/configuration';
 import helmet from 'helmet';
@@ -12,10 +11,17 @@ async function bootstrap() {
   const logger = new Logger();
   app.useLogger(logger);
 
-  // Configurar Helmet para seguridad (excluir CSP para Scalar)
+  // Configurar Helmet para seguridad
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Deshabilitado para Scalar API Reference
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Necesario para Swagger UI
+          scriptSrc: ["'self'", "'unsafe-inline'"], // Necesario para Swagger UI
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
+      },
       hsts: {
         maxAge: 31536000,
         includeSubDomains: true,
@@ -89,19 +95,24 @@ API para la gestión de formularios de partes interesadas.
 
   const document = SwaggerModule.createDocument(app, config);
 
-  // Configurar Scalar API Reference
-  app.use(
-    '/api',
-    apiReference({
-      content: document,
-    }),
-  );
-  logger.log('API documentation: Scalar', 'Bootstrap');
+  // Establecer prefijo global para todas las rutas de la API
+  app.setGlobalPrefix('api');
+
+  // Configurar Swagger UI para documentación de API
+  SwaggerModule.setup('api/docs', app, document, {
+    customSiteTitle: 'Forms API Documentation',
+    swaggerOptions: {
+      persistAuthorization: true,
+      tagsSorter: 'alpha',
+      operationsSorter: 'alpha',
+    },
+  });
+  logger.log('API documentation: Swagger UI (mounted at /api/docs)', 'Bootstrap');
 
   await app.listen(envs.port);
 
   logger.log(`HTTP server running on port ${envs.port}`, 'Bootstrap');
-  logger.log(`API documentation available at http://localhost:${envs.port}/api`, 'Bootstrap');
+  logger.log(`API documentation available at http://localhost:${envs.port}/api/docs`, 'Bootstrap');
   logger.log(`Environment: ${envs.nodeEnv}`, 'Bootstrap');
   logger.log(`CORS enabled for: ${envs.cors.origins.join(', ')}`, 'Bootstrap');
   logger.log(`Rate limit: ${envs.rateLimit.limit} requests per ${envs.rateLimit.ttl / 1000} seconds`, 'Bootstrap');
